@@ -1,0 +1,15 @@
+apted==1.0.3
+asgi_correlation_id==4.2.0
+einops==0.8.0
+fastapi==0.109.1
+pandas==2.2.2
+psycopg2-binary==2.9.9
+pydantic==2.10.5
+pydantic-settings==2.0.3
+python-json-logger==2.0.7
+python-multipart==0.0.9
+sqlalchemy==2.0.35
+structlog==22.3.0
+tiktoken==0.7.0
+uvicorn[standard]==0.18.3
+xlsxwriter==3.2.0
