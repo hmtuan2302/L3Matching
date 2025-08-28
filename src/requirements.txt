@@ -3,6 +3,8 @@ asgi_correlation_id==4.2.0
 einops==0.8.0
 fastapi==0.109.1
 pandas==2.2.2
+polars==1.32.3
+pre-commit
 psycopg2-binary==2.9.9
 pydantic==2.10.5
 pydantic-settings==2.0.3
@@ -13,3 +15,7 @@ structlog==22.3.0
 tiktoken==0.7.0
 uvicorn[standard]==0.18.3
 xlsxwriter==3.2.0
+fastembed==0.7.2
+fastexcel==0.14.0
+faiss-cpu==1.12.0
+thefuzz==0.22.1
