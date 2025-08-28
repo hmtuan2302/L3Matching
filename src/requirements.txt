@@ -3,6 +3,8 @@ asgi_correlation_id==4.2.0
 einops==0.8.0
 fastapi==0.109.1
 pandas==2.2.2
+polars
+pre-commit
 psycopg2-binary==2.9.9
 pydantic==2.10.5
 pydantic-settings==2.0.3
