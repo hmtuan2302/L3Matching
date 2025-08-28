@@ -4,19 +4,16 @@ import hashlib
 import os
 import tempfile
 from pathlib import Path
-from typing import List
 from typing import Literal
 
-import numpy as np
-import pandas as pd
 import polars as pl
+from domain.preprocess.embedding import EmbeddingProcessor
+from domain.preprocess.file_validation import MDLFileValidator
+from domain.preprocess.title_processor import TitleProcessor
 from fastapi import UploadFile
 from shared.base import BaseModel
 from shared.utils import get_logger
 from shared.utils import profile
-from domain.preprocess.embedding import EmbeddingProcessor
-from domain.preprocess.file_validation import MDLFileValidator
-from domain.preprocess.title_processor import TitleProcessor
 logger = get_logger(__name__)
 
 
@@ -59,7 +56,7 @@ class PreProcessor:
             return temp_path
 
         except Exception as e:
-            logger.error(f"Error saving upload file: {str(e)}")
+            logger.error(f'Error saving upload file: {str(e)}')
             raise
 
     def _read_excel_file(self, file_path: str) -> pl.DataFrame:
@@ -68,22 +65,22 @@ class PreProcessor:
             # Check file exists and has valid extension
             path = Path(file_path)
             if not path.exists():
-                raise FileNotFoundError(f"File not found: {file_path}")
+                raise FileNotFoundError(f'File not found: {file_path}')
 
             if path.suffix.lower() not in ['.xlsx', '.xls']:
-                raise ValueError(f"Invalid file format: {path.suffix}")
+                raise ValueError(f'Invalid file format: {path.suffix}')
 
             # Read with Polars
             df = pl.read_excel(file_path)
             logger.info(
-                f"Successfully read Excel file: {df.height} rows, "
-                f"{df.width} columns",
+                f'Successfully read Excel file: {df.height} rows, '
+                f'{df.width} columns',
             )
 
             return df
 
         except Exception as e:
-            logger.error(f"Error reading Excel file: {str(e)}")
+            logger.error(f'Error reading Excel file: {str(e)}')
             raise
 
     def _process_title_column(self, df: pl.DataFrame) -> pl.DataFrame:
@@ -109,7 +106,7 @@ class PreProcessor:
             return processed_df
 
         except Exception as e:
-            logger.error(f"Error processing title column: {str(e)}")
+            logger.error(f'Error processing title column: {str(e)}')
             raise
 
     def _add_title_embeddings(self, df: pl.DataFrame) -> pl.DataFrame:
@@ -154,13 +151,13 @@ class PreProcessor:
             ])
 
             logger.info(
-                f"Successfully generated embeddings for "
-                f"{len(embeddings)} titles",
+                f'Successfully generated embeddings for '
+                f'{len(embeddings)} titles',
             )
             return df_with_embeddings
 
         except Exception as e:
-            logger.error(f"Error generating title embeddings: {str(e)}")
+            logger.error(f'Error generating title embeddings: {str(e)}')
             # Return original dataframe if embedding fails
             return df
 
@@ -171,81 +168,102 @@ class PreProcessor:
                 content = f.read()
             return hashlib.md5(content).hexdigest()[:16]
         except Exception as e:
-            logger.warning(f"Could not generate file hash: {str(e)}")
+            logger.warning(f'Could not generate file hash: {str(e)}')
             return 'unknown'
 
     def _add_range_columns(self, df: pl.DataFrame) -> pl.DataFrame:
-        """Add Range columns for First and Final dates, handling pre-converted datetime columns."""
+        """Add Range columns for First and Final dates, handling
+            pre-converted datetime columns."""
         try:
-            logger.info("Starting range column calculations...")
-            
+            logger.info('Starting range column calculations...')
+
             # Define date column names
             date_cols = [
-                "Plan - First Date", "Actual - First Date",
-                "Plan - Final Date", "Actual - Final Date"
+                'Plan - First Date', 'Actual - First Date',
+                'Plan - Final Date', 'Actual - Final Date',
             ]
-            
+
             # Check current data types of date columns
             column_info = {}
             for col in date_cols:
                 dtype = df.select(pl.col(col)).dtypes[0]
                 column_info[col] = dtype
                 logger.info(f"Column '{col}' has dtype: {dtype}")
-            
-            # Convert to datetime if needed, otherwise use existing datetime columns
+
+            # Convert to datetime if needed, otherwise use existing datetime
             datetime_conversion_map = {}
-            
+
             for col in date_cols:
                 if column_info[col] in [pl.Date, pl.Datetime]:
-                    # Already a date/datetime type, use as-is but ensure it's datetime
+                    # use as-is but ensure it's datetime
                     if column_info[col] == pl.Date:
-                        datetime_conversion_map[col] = pl.col(col).cast(pl.Datetime)
+                        datetime_conversion_map[col] = pl.col(
+                            col,
+                        ).cast(pl.Datetime)
                     else:
                         datetime_conversion_map[col] = pl.col(col)
                 else:
                     # String type, needs conversion
-                    datetime_conversion_map[col] = pl.col(col).str.to_datetime(strict=False)
-            
+                    datetime_conversion_map[col] = pl.col(
+                        col,
+                    ).str.to_datetime(strict=False)
+
             # Create temporary datetime columns
             df_with_dates = df.with_columns([
-                datetime_conversion_map["Plan - First Date"].alias("Plan_First_Date_dt"),
-                datetime_conversion_map["Actual - First Date"].alias("Actual_First_Date_dt"),
-                datetime_conversion_map["Plan - Final Date"].alias("Plan_Final_Date_dt"),
-                datetime_conversion_map["Actual - Final Date"].alias("Actual_Final_Date_dt"),
+                datetime_conversion_map['Plan - First Date'].alias(
+                    'Plan_First_Date_dt',
+                ),
+                datetime_conversion_map['Actual - First Date'].alias(
+                    'Actual_First_Date_dt',
+                ),
+                datetime_conversion_map['Plan - Final Date'].alias(
+                    'Plan_Final_Date_dt',
+                ),
+                datetime_conversion_map['Actual - Final Date'].alias(
+                    'Actual_Final_Date_dt',
+                ),
             ])
-            
+
             # Check for null values after conversion
-            temp_datetime_cols = ["Plan_First_Date_dt", "Actual_First_Date_dt", 
-                                "Plan_Final_Date_dt", "Actual_Final_Date_dt"]
-            
+            temp_datetime_cols = [
+                'Plan_First_Date_dt', 'Actual_First_Date_dt',
+                'Plan_Final_Date_dt', 'Actual_Final_Date_dt',
+            ]
+
             for temp_col in temp_datetime_cols:
-                null_count = df_with_dates.select(pl.col(temp_col).is_null().sum()).item()
+                null_count = df_with_dates.select(
+                    pl.col(temp_col).is_null().sum(),
+                ).item()
                 if null_count > 0:
-                    logger.warning(f"Column {temp_col} has {null_count} null values after conversion")
-            
+                    logger.warning(
+                        f'Column {temp_col} has {null_count} null values '
+                        f'after conversion',
+                    )
+
             # Calculate range columns (difference in days)
             df_with_ranges = df_with_dates.with_columns([
-                (pl.col("Actual_First_Date_dt") - pl.col("Plan_First_Date_dt"))
+                (pl.col('Actual_First_Date_dt') - pl.col('Plan_First_Date_dt'))
                 .dt.total_days()
-                .alias("Range - First Date"),
-                
-                (pl.col("Actual_Final_Date_dt") - pl.col("Plan_Final_Date_dt"))
+                .alias('Range - First Date'),
+
+                (pl.col('Actual_Final_Date_dt') - pl.col('Plan_Final_Date_dt'))
                 .dt.total_days()
-                .alias("Range - Final Date")
+                .alias('Range - Final Date'),
             ])
-            
+
             # Drop temporary datetime columns
             final_df = df_with_ranges.drop([
-                "Plan_First_Date_dt", "Actual_First_Date_dt",
-                "Plan_Final_Date_dt", "Actual_Final_Date_dt"
+                'Plan_First_Date_dt', 'Actual_First_Date_dt',
+                'Plan_Final_Date_dt', 'Actual_Final_Date_dt',
             ])
-            
-            
-            logger.info("Successfully added Range - First Date and Range - Final Date columns")
+
+            logger.info(
+                'Successfully added Range columns',
+            )
             return final_df
-            
+
         except Exception as e:
-            logger.error(f"Error adding range columns: {str(e)}")
+            logger.error(f'Error adding range columns: {str(e)}')
             import traceback
             traceback.print_exc()
             # Return original dataframe if range calculation fails
@@ -259,25 +277,25 @@ class PreProcessor:
     ) -> str:
         """Save processed DataFrame to new Excel file."""
         try:
-            # Use original filename if provided, otherwise use file_type as base name
             if original_filename:
                 original_name = Path(original_filename).stem
             else:
                 original_name = file_type
-                
+
             output_dir = Path('../processed_files')
             output_dir.mkdir(exist_ok=True)
 
-            output_path = output_dir / f"{original_name}_{file_type}_processed.xlsx"
+            output_path = output_dir / \
+                f'{original_name}_{file_type}_processed.xlsx'
 
             # Save as Excel
             df.write_excel(str(output_path))
-            logger.info(f"Saved processed file to: {output_path}")
+            logger.info(f'Saved processed file to: {output_path}')
 
             return str(output_path)
 
         except Exception as e:
-            logger.error(f"Error saving processed file: {str(e)}")
+            logger.error(f'Error saving processed file: {str(e)}')
             raise
 
     @profile
@@ -298,7 +316,7 @@ class PreProcessor:
 
                 # Validate and convert date columns
                 df = self.validator.validate_date_columns(df, input.file_type)
-                
+
                 # Add Range columns for date differences
                 df = self._add_range_columns(df)
 
@@ -311,7 +329,7 @@ class PreProcessor:
             return PreProcessorOutput(processed_df=df)
 
         except Exception as e:
-            logger.error(f"Error in preprocessing: {str(e)}")
+            logger.error(f'Error in preprocessing: {str(e)}')
             return PreProcessorOutput(processed_df=None)
 
         finally:
@@ -320,4 +338,4 @@ class PreProcessor:
                 try:
                     os.unlink(temp_file_path)
                 except Exception as e:
-                    logger.warning(f"Could not clean up temp file: {str(e)}")
+                    logger.warning(f'Could not clean up temp file: {str(e)}')
