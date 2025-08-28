@@ -172,8 +172,8 @@ class PreProcessor:
             return 'unknown'
 
     def _add_range_columns(self, df: pl.DataFrame) -> pl.DataFrame:
-        """Add Range columns for First and Final dates, handling
-            pre-converted datetime columns."""
+        """Add Range columns for First and Final dates, handling pre-converted
+            datetime columns."""
         try:
             logger.info('Starting range column calculations...')
 
@@ -190,7 +190,7 @@ class PreProcessor:
                 column_info[col] = dtype
                 logger.info(f"Column '{col}' has dtype: {dtype}")
 
-            # Convert to datetime if needed, otherwise use existing datetime
+            # Convert to datetime, otherwise use existing datetime columns
             datetime_conversion_map = {}
 
             for col in date_cols:
@@ -236,8 +236,8 @@ class PreProcessor:
                 ).item()
                 if null_count > 0:
                     logger.warning(
-                        f'Column {temp_col} has {null_count} null values '
-                        f'after conversion',
+                        f'Column {temp_col} has {null_count} null'
+                        f' values after conversion',
                     )
 
             # Calculate range columns (difference in days)
