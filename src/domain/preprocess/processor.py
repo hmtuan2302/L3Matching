@@ -16,7 +16,6 @@ from shared.utils import get_logger
 from shared.utils import profile
 logger = get_logger(__name__)
 
-
 class PreProcessorInput(BaseModel):
     file: UploadFile
     file_type: Literal[

@@ -113,7 +113,7 @@ class MDLFileValidator:
                     validated_df = validated_df.with_columns([
                         pl.col(date_col).str.strptime(
                             pl.Datetime,
-                            fmt='%Y-%m-%d', strict=False,
+                            format='%Y-%m-%d', strict=False,
                         ).alias(date_col),
                     ])
                     logger.info(
@@ -125,7 +125,7 @@ class MDLFileValidator:
                         validated_df
                         .with_columns([
                             pl.col(date_col).str.strptime(
-                                pl.Datetime, fmt='%Y-%m-%d', strict=False,
+                                pl.Datetime, format='%Y-%m-%d', strict=False,
                             ).alias('parsed'),
                         ])
                         .filter(pl.col('parsed').is_null())

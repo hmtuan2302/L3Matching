@@ -13,7 +13,7 @@ from shared.model import DocumentOperation
 class DocumentApplicationInput(BaseModel):
     """Base Application Input, All ConcreteApplicationInput must inherited this if have extra fields"""
 
-    file: UploadFile
+    pass
 
 
 class DocumentApplicationOutput(BaseModel):

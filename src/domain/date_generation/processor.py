@@ -26,7 +26,7 @@ logger = get_logger(__name__)
 class DateGenerationInput(BaseModel):
     """Input for date generation processing."""
     model_config = {'arbitrary_types_allowed': True}
-    document_title: str
+    document_title: str = "Title"
     threshold_number: int = 10
     data: Dict[str, pl.DataFrame]
     fuzzy_threshold: float = 0.8
@@ -53,8 +53,8 @@ class DateGenerationProcessor:
         """Batch date generation pipeline for all rows in input_df."""
         results = []
 
-        input_df = input.data.get('mdl_input_testing')
-        hist_data = input.data.get('mdl_historical')
+        input_df = data['mdl_input_testing']
+        hist_data = data['mdl_historical']
 
         if input_df is None:
             raise ValueError(
@@ -90,10 +90,10 @@ class DateGenerationProcessor:
                 explanations,
             ) = self.date_generation(
                 document_title=document_title,
-                thres_no=data.threshold_number,
+                thres_no=10,
                 hist_data=hist_data,
-                fuzzy_threshold=data.fuzzy_threshold,
-                embedding_threshold=data.embedding_threshold,
+                fuzzy_threshold=0.8,
+                embedding_threshold=0.7,
                 input_data=input_df,
             )
 
