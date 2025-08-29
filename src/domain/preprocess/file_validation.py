@@ -6,6 +6,7 @@ from shared.utils import get_logger
 
 logger = get_logger(__name__)
 
+
 class MDLFileValidator:
     """Validator for MDL file types."""
 
@@ -55,10 +56,10 @@ class MDLFileValidator:
 
         if missing_columns:
             raise ValueError(
-                f"Missing required columns for {file_type}: {missing_columns}",
+                f'Missing required columns for {file_type}: {missing_columns}',
             )
 
-        logger.info(f"All required columns present for {file_type}")
+        logger.info(f'All required columns present for {file_type}')
 
     def validate_date_columns(
         self,
@@ -84,8 +85,8 @@ class MDLFileValidator:
             null_count = validated_df[date_col].null_count()
             if null_count > 0:
                 raise ValueError(
-                    f"Found {null_count} null values in date column "
-                    f"'{date_col}'. All date columns must have valid values."
+                    f'Found {null_count} null values in date column '
+                    f"'{date_col}'. All date columns must have valid values.",
                 )
 
             # Get current dtype
@@ -99,33 +100,50 @@ class MDLFileValidator:
             # If Date, cast to Datetime
             if current_dtype == pl.Date:
                 validated_df = validated_df.with_columns([
-                    pl.col(date_col).cast(pl.Datetime).alias(date_col)
+                    pl.col(date_col).cast(pl.Datetime).alias(date_col),
                 ])
-                logger.info(f"Column '{date_col}' converted from Date to Datetime")
+                logger.info(
+                    f"Column '{date_col}' converted from Date to Datetime",
+                )
                 continue
 
             # If String, try parsing
             if current_dtype == pl.Utf8:
                 try:
                     validated_df = validated_df.with_columns([
-                        pl.col(date_col).str.strptime(pl.Datetime, fmt='%Y-%m-%d', strict=False).alias(date_col)
+                        pl.col(date_col).str.strptime(
+                            pl.Datetime,
+                            fmt='%Y-%m-%d', strict=False,
+                        ).alias(date_col),
                     ])
-                    logger.info(f"Successfully converted '{date_col}' to Datetime")
+                    logger.info(
+                        f"Successfully converted '{date_col}' to Datetime",
+                    )
                 except Exception:
                     # Identify problematic rows
                     problematic_rows = (
                         validated_df
                         .with_columns([
-                            pl.col(date_col).str.strptime(pl.Datetime, fmt='%Y-%m-%d', strict=False).alias("parsed")
+                            pl.col(date_col).str.strptime(
+                                pl.Datetime, fmt='%Y-%m-%d', strict=False,
+                            ).alias('parsed'),
                         ])
-                        .filter(pl.col("parsed").is_null())
+                        .filter(pl.col('parsed').is_null())
                         .select([date_col])
                     )
-                    logger.error(f"Invalid date values in '{date_col}': {problematic_rows}")
-                    raise ValueError(f"Cannot convert '{date_col}' to Datetime due to invalid format values")
+                    logger.error(
+                        f"Invalid date values in '{date_col}': "
+                        f'{problematic_rows}',
+                    )
+                    raise ValueError(
+                        f"Cannot convert '{date_col}' to Datetime due "
+                        f'to invalid format values',
+                    )
 
             else:
-                raise ValueError(f"Column '{date_col}' has unsupported type: {current_dtype}")
+                raise ValueError(
+                    f"Column '{date_col}' has unsupported"
+                    f' type: {current_dtype}',
+                )
 
         return validated_df
-

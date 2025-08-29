@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 from typing import List
 
 from fastembed import TextEmbedding
@@ -20,9 +19,9 @@ class EmbeddingProcessor:
     def embedding_model(self) -> TextEmbedding:
         """Lazy initialization of embedding model."""
         if self._embedding_model is None:
-            logger.info(f"Initializing embedding model: {self.model_name}")
+            logger.info(f'Initializing embedding model: {self.model_name}')
             self._embedding_model = TextEmbedding(model_name=self.model_name)
-            logger.info(f"Embedding model {self.model_name} is ready to use.")
+            logger.info(f'Embedding model {self.model_name} is ready to use.')
         return self._embedding_model
 
     def generate_embeddings(self, texts: List[str]) -> List[List[float]]:
@@ -50,7 +49,7 @@ class EmbeddingProcessor:
                 return [[0.0] * 384] * len(texts)  # Return zero vectors
 
             logger.info(
-                f"Generating embeddings for {len(valid_texts)} texts...",
+                f'Generating embeddings for {len(valid_texts)} texts...',
             )
 
             # Generate embeddings
@@ -73,12 +72,12 @@ class EmbeddingProcessor:
                     full_embeddings.append([0.0] * embedding_dim)
 
             logger.info(
-                f"Successfully generated {len(full_embeddings)} embeddings",
+                f'Successfully generated {len(full_embeddings)} embeddings',
             )
             return full_embeddings
 
         except Exception as e:
-            logger.error(f"Error generating embeddings: {str(e)}")
+            logger.error(f'Error generating embeddings: {str(e)}')
             # Return zero vectors as fallback
             embedding_dim = 384  # Default for BAAI/bge-small-en-v1.5
             return [[0.0] * embedding_dim] * len(texts)

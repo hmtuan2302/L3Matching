@@ -249,12 +249,13 @@ class PreProcessor:
     def process_multiple(
         self,
         inputs: list[PreProcessorInput],
-    ) -> list[pl.DataFrame]:
+    ) -> dict:
         """
-        Process multiple files and return a list of processed DataFrames.
-        Each output is a processed DataFrame (or None if failed).
+        Process multiple files and return a dict of processed DataFrames.
+        Each key is the file_type, value is the processed DataFrame
+            (or None if failed).
         """
-        processed_dfs = []
+        processed_dfs = {}
         for input in inputs:
             temp_file_path = None
             try:
@@ -273,7 +274,7 @@ class PreProcessor:
                     if input.generate_embeddings:
                         df = self._add_title_embeddings(df)
 
-                processed_dfs.append(df)
+                processed_dfs[input.file_type] = df
 
             except Exception as e:
                 logger.error(
@@ -281,7 +282,7 @@ class PreProcessor:
                     getattr(input.file, 'filename', 'unknown'),
                     str(e),
                 )
-                processed_dfs.append(None)
+                processed_dfs[input.file_type] = None
 
             finally:
                 if temp_file_path and os.path.exists(temp_file_path):

@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import re
+
 from shared.utils import get_logger
 
 logger = get_logger(__name__)
+
+
 class TitleProcessor:
     """Processor for cleaning and normalizing title text."""
 
