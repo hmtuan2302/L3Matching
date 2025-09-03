@@ -53,19 +53,25 @@ def iou_1_sample(
     if actual_end < actual_start:
         actual_start, actual_end = actual_end, actual_start
 
-    # Intersection
-    intersection_start = max(pred_start, actual_start)
-    intersection_end = min(pred_end, actual_end)
-    intersection = max(
-        0, (intersection_end - intersection_start).days + 1,
-    )  # inclusive
+    # Calculation 1
+    # # Intersection
+    # intersection_start = max(pred_start, actual_start)
+    # intersection_end = min(pred_end, actual_end)
+    # intersection = max(
+    #     0, (intersection_end - intersection_start).days + 1,
+    # )  # inclusive
 
-    # Union
-    union_start = min(pred_start, actual_start)
-    union_end = max(pred_end, actual_end)
-    union = (union_end - union_start).days + 1
+    # # Union
+    # union_start = min(pred_start, actual_start)
+    # union_end = max(pred_end, actual_end)
+    # union = (union_end - union_start).days + 1
 
-    return intersection / union if union > 0 else 0.0
+    # return intersection / union if union > 0 else 0.0
+
+    intersection_start = abs((actual_start - pred_start).days)
+    intersection_end = abs((actual_end - pred_end).days)
+    intersection = intersection_start + intersection_end
+    return intersection
 
 
 def iou_mean(

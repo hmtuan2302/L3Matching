@@ -26,7 +26,7 @@ logger = get_logger(__name__)
 class DateGenerationInput(BaseModel):
     """Input for date generation processing."""
     model_config = {'arbitrary_types_allowed': True}
-    document_title: str = "Title"
+    document_title: str = 'Title'
     threshold_number: int = 10
     data: Dict[str, pl.DataFrame]
     fuzzy_threshold: float = 0.8
@@ -64,12 +64,13 @@ class DateGenerationProcessor:
             raise ValueError(
                 'Historical data not found in input dictionary.',
             )
-
+        logger.info(hist_data.columns)
         for row in input_df.iter_rows(named=True):
             logger.info(
-                f"Processing document: {row.get('Title', 'Unknown Title')}",
+                f"Processing document: "
+                f"{row.get('Title_Processed', 'Unknown Title')}",
             )
-            document_title = row.get('Title')
+            document_title = row.get('Title_Processed')
             plan_date = row.get('Plan - First Date')
             plan_final_date = row.get('Plan - Final Date')
             actual_first_date = row.get('Actual - First Date')
@@ -96,17 +97,47 @@ class DateGenerationProcessor:
                 embedding_threshold=0.7,
                 input_data=input_df,
             )
+            # Round the predicted days to integers
+            predicted_first_date_days_rounded = (
+                round(
+                    predicted_first_date_days,
+                ) if predicted_first_date_days is not None else None
+            )
+            predicted_final_date_days_rounded = (
+                round(
+                    predicted_final_date_days,
+                ) if predicted_final_date_days is not None else None
+            )
 
             predicted_first_date_actual = (
-                plan_date + timedelta(days=predicted_first_date_days)
-                if plan_date and predicted_first_date_days is not None
+                plan_date + timedelta(days=predicted_first_date_days_rounded)
+                if (
+                    plan_date and
+                    predicted_first_date_days_rounded is not None
+                )
                 else None
             )
             predicted_final_date_actual = (
-                plan_final_date + timedelta(days=predicted_final_date_days)
-                if plan_final_date and predicted_final_date_days is not None
+                plan_final_date +
+                timedelta(days=predicted_final_date_days_rounded)
+                if (
+                    plan_final_date and
+                    predicted_final_date_days_rounded is not None
+                )
                 else None
             )
+
+            # Calculate IOU properly - ensure all dates are available
+            result_iou = None
+            if (
+                predicted_first_date_actual and predicted_final_date_actual and
+                actual_first_date and actual_final_date
+            ):
+                result_iou = iou_1_sample(
+                    [predicted_first_date_actual, predicted_final_date_actual],
+                    [actual_first_date, actual_final_date],
+                )
+                logger.info(f"Calculated IoU: {result_iou}")
 
             output_data = {
                 'Document Title': document_title,
@@ -114,19 +145,17 @@ class DateGenerationProcessor:
                 'Plan - Final Date': plan_final_date,
                 'Actual - First Date': actual_first_date,
                 'Actual - Final Date': actual_final_date,
-                'Predicted - First Date (Days)': predicted_first_date_days,
-                'Predicted - Final Date (Days)': predicted_final_date_days,
+                'Predicted - First Date (Days)':
+                predicted_first_date_days_rounded,
+                'Predicted - Final Date (Days)':
+                predicted_final_date_days_rounded,
                 'Predict - First Date': predicted_first_date_actual,
                 'Predict - Final Date': predicted_final_date_actual,
                 'calculation_method': calculation_method,
                 'explanations': explanations,
-                'result_iou': iou_1_sample(
-                    [predicted_first_date_actual, predicted_final_date_actual],
-                    [actual_first_date, actual_final_date],
-                ),
+                'result_iou': result_iou,
             }
             results.append(output_data)
-
         output_df = pl.DataFrame(results)
         # --- Metrics calculation ---
         # Only calculate metrics if actual dates are available for all rows
@@ -436,10 +465,10 @@ class DateGenerationProcessor:
             fuzzy_matches = fuzzy_search(
                 input_title=document_title,
                 title_list=titles,
-                limit=50,  # Get more results to filter later
+                limit=10,  # Get more results to filter later
                 threshold=threshold_percentage,
             )
-
+            logger.info(f"Fuzzy matches found: {fuzzy_matches}")
             matches = []
             scores = []
 
@@ -754,6 +783,7 @@ class DateGenerationProcessor:
                 logger.warning(
                     'Range columns not found. Data may not be preprocessed.',
                 )
+                logger.warning(hist_document.columns)
                 return 0.0, 0.0
 
             # Calculate averages, handling null values
