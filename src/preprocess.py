@@ -26,9 +26,10 @@ class Preprocessor:
                          NTP: pl.datetime = pl.datetime(2016, 12, 27)) -> pl.DataFrame:
         # read excel file with file_path
         df = pl.read_excel(file_path, 
-                           sheet_name="DDCL(DHI-PP) 2020-10-21",
-                           read_options={"skip_rows": 4})
-        df = df[:, [2, 4, 6, 7]]    # Need to adjust based on actual file structure
+                           sheet_name="Sheet1",
+                        #    read_options={"skip_rows": 4}
+                           )
+        # df = df[:, [2, 4, 6, 7]]    # Need to adjust based on actual file structure
         df.columns = ["Document No", "Title", "FA", "FC"]
 
         # datetime NTP = 27/12/2016
@@ -42,6 +43,7 @@ class Preprocessor:
         ])
         # drop rows with FA_to_FC < 0
         df = df.filter(pl.col("FA_to_FC") >= 0)
+        df = df.filter(pl.col("FA_to_FC") < 300)
         return df
 
     def load_data(self) -> pl.DataFrame:
@@ -52,6 +54,7 @@ class Preprocessor:
             df_list.append(df)
         df = pl.concat(df_list, how="vertical")
         self.df = df
+        logger.info(f"Data loaded with shape: {df.shape}")
         return df
 
     def encode_document_no(self, df: pl.DataFrame) -> List[List[float]]:

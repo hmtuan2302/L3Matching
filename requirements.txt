@@ -5,3 +5,5 @@ scikit-learn==1.7.1
 rank_bm25==0.2.2
 loguru==0.7.3
 nltk==3.9.1
+matplotlib==3.10.6
+lightgbm==4.6.0
