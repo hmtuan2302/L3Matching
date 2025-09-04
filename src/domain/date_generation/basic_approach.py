@@ -112,4 +112,3 @@ def basic_date_gen(
         pl.Series("predicted_NTP_to_FA", NTP_to_FA_pred),
         pl.Series("predicted_FA_to_FC", FA_to_FC_pred),
     ])
-

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 from datetime import datetime
+from datetime import datetime
 from typing import List
 from typing import Tuple
 from typing import Union
@@ -70,6 +71,8 @@ def iou_1_sample(
 
     return intersection / union if union > 0 else 0.0
 
+  
+
 
 def iou_mean(
     predicted_ranges: List[Tuple[Union[str, date], Union[str, date]]],
@@ -135,8 +138,26 @@ def mae(
         else:
             raise ValueError(f"Unsupported date type: {type(date_value)}")
 
+    # Helper function to convert string or date to date object
+    def parse_date(date_value):
+        if isinstance(date_value, str):
+            # Handle both date and datetime strings
+            if ' ' in date_value:  # datetime string
+                return datetime.fromisoformat(date_value).date()
+            else:  # date string
+                return date.fromisoformat(date_value)
+        elif isinstance(date_value, datetime):
+            return date_value.date()
+        elif isinstance(date_value, date):
+            return date_value
+        else:
+            raise ValueError(f"Unsupported date type: {type(date_value)}")
+
     errors = []
     for pred, actual in zip(predicted_dates, actual_dates):
+        pred_date = parse_date(pred)
+        actual_date = parse_date(actual)
+        errors.append(abs((pred_date - actual_date).days))
         pred_date = parse_date(pred)
         actual_date = parse_date(actual)
         errors.append(abs((pred_date - actual_date).days))

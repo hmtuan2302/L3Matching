@@ -2,11 +2,23 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Optional
+import json
+import datetime
 
 from fastapi import status
 from fastapi.responses import JSONResponse
 from shared.base import BaseModel
 from structlog.stdlib import BoundLogger
+
+
+class DateTimeEncoder(json.JSONEncoder):
+    """Custom JSON encoder for datetime objects."""
+    def default(self, obj):
+        if isinstance(obj, (datetime.datetime, datetime.date)):
+            return obj.isoformat()
+        elif hasattr(obj, 'isoformat'):  # pandas Timestamp
+            return obj.isoformat()
+        return super().default(obj)
 
 
 class ResponseMessage(str, Enum):
@@ -48,7 +60,22 @@ class ExceptionHandler(BaseModel):
         if data:
             response_data.update(data)
 
-        return JSONResponse(content=response_data, status_code=status_code)
+        # Clean any datetime objects in the response data
+        cleaned_data = self._clean_datetime_objects(response_data)
+        return JSONResponse(content=cleaned_data, status_code=status_code)
+    
+    def _clean_datetime_objects(self, obj):
+        """Recursively clean datetime objects from data structure."""
+        if isinstance(obj, dict):
+            return {key: self._clean_datetime_objects(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [self._clean_datetime_objects(item) for item in obj]
+        elif isinstance(obj, (datetime.datetime, datetime.date)):
+            return obj.isoformat()
+        elif hasattr(obj, 'isoformat'):  # pandas Timestamp
+            return obj.isoformat()
+        else:
+            return obj
 
     def handle_exception(self, e: str, extra: dict) -> JSONResponse:
         """Handle exception

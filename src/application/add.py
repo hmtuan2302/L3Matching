@@ -15,17 +15,35 @@ from .base import DocumentApplicationInput
 from .base import DocumentApplicationOutput
 from domain.preprocess import PreProcessor
 from domain.preprocess import PreProcessorInput
-logger = get_logger(__name__)
+from domain.date_generation import DateGenerationProcessor
+from domain.date_generation import DateGenerationInput
+from domain.date_generation import DateGenerationOutput
+from typing import List
+from shared.base import BaseModel
+import polars as pl
+
+class AddApplicationInput(DocumentApplicationInput):
+    """Input for document application."""
+    files: List[UploadFile]  # List of UploadFile objects
 
 
-class AddDocumentApplication(DocumentApplication):
+class AddApplicationOutput(DocumentApplicationOutput):
+    """Output for document application."""
+    model_config = {'arbitrary_types_allowed': True}
+    result: pl.DataFrame
+
+class AddApplication(DocumentApplication):
 
     @cached_property
     def preprocess(self) -> PreProcessor:
         return PreProcessor()
+    
+    @cached_property
+    def dategen(self) -> DateGenerationProcessor:
+        return DateGenerationProcessor()
 
     @profile
-    def run(self, inputs: DocumentApplicationInput) -> DocumentApplicationOutput:
+    def run(self, inputs: AddApplicationInput) -> AddApplicationOutput:
         """Run whole pipeline (phase 1 + 2)
 
         Args:
@@ -34,9 +52,16 @@ class AddDocumentApplication(DocumentApplication):
         Returns:
             DocumentApplicationOutput: Results
         """
-        results = self.preprocess.process(PreProcessorInput(file=inputs.file))
 
-        return DocumentApplicationOutput(
-            
-            result="processed",
+        history = PreProcessorInput(file=inputs.files[0], file_type='mdl_historical')
+        testing = PreProcessorInput(file=inputs.files[1], file_type='mdl_input_testing')
+        l3 = PreProcessorInput(file=inputs.files[2], file_type='l3')
+        results = self.preprocess.process_multiple([history, testing, l3])
+        print(results)
+        
+        dategen_result = self.dategen.process(results)
+        print(dategen_result.output_df)
+        
+        return AddApplicationOutput(
+            result=dategen_result.output_df
         )

@@ -15,7 +15,6 @@ from shared.utils import get_logger
 from shared.utils import profile
 logger = get_logger(__name__)
 
-
 class PreProcessorInput(BaseModel):
     model_config = {'arbitrary_types_allowed': True}
     file: UploadFile
