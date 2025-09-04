@@ -50,7 +50,22 @@ class DateGenerationProcessor:
         df = df.with_columns([
             (pl.col("predicted_FA") + pl.duration(days=pl.col("predicted_FA_to_FC"))).alias("predicted_FC")
         ])
-        return df
+        
+        # Reorder columns to place predicted columns next to their respective actual columns
+        current_columns = df.columns
+        ordered_columns = []
+        
+        for col in current_columns:
+            if col in ["predicted_FA", "predicted_FC"]:
+                continue  # Skip these for now, we'll add them in the right position
+            ordered_columns.append(col)
+            
+            if col == "FA" and "predicted_FA" in current_columns:
+                ordered_columns.append("predicted_FA")
+            elif col == "FC" and "predicted_FC" in current_columns:
+                ordered_columns.append("predicted_FC")
+        
+        return df.select(ordered_columns)
 
     
     @profile

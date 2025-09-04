@@ -108,7 +108,12 @@ def basic_date_gen(
     NTP_to_FA_pred = predict_date_range(sim_matrix, hist_NTP_FA, method, max_k)
     FA_to_FC_pred = predict_date_range(sim_matrix, hist_FA_FC, method, max_k)
 
-    return input_data.with_columns([
+    # Remove embedding columns from output
+    columns_to_exclude = ["no_embed", "title_embed", "concat_embed"]
+    filtered_columns = [col for col in input_data.columns if col not in columns_to_exclude]
+    
+    # Create DataFrame with predictions
+    return input_data.select(filtered_columns).with_columns([
         pl.Series("predicted_NTP_to_FA", NTP_to_FA_pred),
         pl.Series("predicted_FA_to_FC", FA_to_FC_pred),
     ])

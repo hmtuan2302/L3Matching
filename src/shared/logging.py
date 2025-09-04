@@ -13,16 +13,16 @@ from structlog.types import EventDict
 from structlog.types import Processor
 
 
-class CustomFileHandler(FileHandler):
-    def __init__(self):
-        time = datetime.today().strftime('%Y-%m-%d-%H-%M-%S')
-        day = '-'.join(time.split('-')[:3])
-        timestamp = '-'.join(time.split('-')[3:])
-        log_dir = 'logging_data'
-        log_file = os.path.join(log_dir, day, timestamp, 'error_logs.json')
-        os.makedirs(os.path.join(log_dir, day, timestamp), exist_ok=True)
+# class CustomFileHandler(FileHandler):
+    # def __init__(self):
+    #     time = datetime.today().strftime('%Y-%m-%d-%H-%M-%S')
+    #     day = '-'.join(time.split('-')[:3])
+    #     timestamp = '-'.join(time.split('-')[3:])
+    #     log_dir = 'logging_data'
+    #     log_file = os.path.join(log_dir, day, timestamp, 'error_logs.json')
+    #     os.makedirs(os.path.join(log_dir, day, timestamp), exist_ok=True)
 
-        super().__init__(log_file)
+    #     super().__init__(log_file)
 
 
 def drop_color_message_key(_, __, event_dict: EventDict) -> EventDict:
@@ -45,10 +45,10 @@ def setup_logging(
         log_level (str, optional): The log level to use. Defaults to "INFO".
     """
 
-    file_handler = CustomFileHandler()
-    file_formatter = jsonlogger.JsonFormatter()
-    file_handler.setLevel(logging.ERROR)
-    file_handler.setFormatter(file_formatter)
+    # file_handler = CustomFileHandler()
+    # file_formatter = jsonlogger.JsonFormatter()
+    # file_handler.setLevel(logging.ERROR)
+    # file_handler.setFormatter(file_formatter)
 
     timestamper = structlog.processors.TimeStamper(fmt='iso')
 
@@ -104,7 +104,7 @@ def setup_logging(
     handler.setFormatter(formatter)
     root_logger = logging.getLogger()
     root_logger.addHandler(handler)
-    root_logger.addHandler(file_handler)
+    # root_logger.addHandler(file_handler)
     root_logger.setLevel(log_level.upper())
 
     for _log in ['uvicorn', 'uvicorn.error']:
