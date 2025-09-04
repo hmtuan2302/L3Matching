@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from datetime import date
 from datetime import datetime
+from datetime import datetime
 from typing import List
 from typing import Tuple
 from typing import Union
-
+import pandas as pd
 import numpy as np
 
 
@@ -38,6 +39,9 @@ def iou_1_sample(
             return date_value.date()
         elif isinstance(date_value, date):
             return date_value
+        elif isinstance(date_value, np.datetime64):
+            # Convert numpy.datetime64 to datetime first
+            return pd.to_datetime(date_value).to_pydatetime()
         else:
             raise ValueError(f"Unsupported date type: {type(date_value)}")
 
@@ -53,25 +57,21 @@ def iou_1_sample(
     if actual_end < actual_start:
         actual_start, actual_end = actual_end, actual_start
 
-    # Calculation 1
-    # # Intersection
-    # intersection_start = max(pred_start, actual_start)
-    # intersection_end = min(pred_end, actual_end)
-    # intersection = max(
-    #     0, (intersection_end - intersection_start).days + 1,
-    # )  # inclusive
+    # Intersection
+    intersection_start = max(pred_start, actual_start)
+    intersection_end = min(pred_end, actual_end)
+    intersection = max(
+        0, (intersection_end - intersection_start).days + 1,
+    )  # inclusive
 
-    # # Union
-    # union_start = min(pred_start, actual_start)
-    # union_end = max(pred_end, actual_end)
-    # union = (union_end - union_start).days + 1
+    # Union
+    union_start = min(pred_start, actual_start)
+    union_end = max(pred_end, actual_end)
+    union = (union_end - union_start).days + 1
 
-    # return intersection / union if union > 0 else 0.0
+    return intersection / union if union > 0 else 0.0
 
-    intersection_start = abs((actual_start - pred_start).days)
-    intersection_end = abs((actual_end - pred_end).days)
-    intersection = intersection_start + intersection_end
-    return intersection
+  
 
 
 def iou_mean(
@@ -138,8 +138,26 @@ def mae(
         else:
             raise ValueError(f"Unsupported date type: {type(date_value)}")
 
+    # Helper function to convert string or date to date object
+    def parse_date(date_value):
+        if isinstance(date_value, str):
+            # Handle both date and datetime strings
+            if ' ' in date_value:  # datetime string
+                return datetime.fromisoformat(date_value).date()
+            else:  # date string
+                return date.fromisoformat(date_value)
+        elif isinstance(date_value, datetime):
+            return date_value.date()
+        elif isinstance(date_value, date):
+            return date_value
+        else:
+            raise ValueError(f"Unsupported date type: {type(date_value)}")
+
     errors = []
     for pred, actual in zip(predicted_dates, actual_dates):
+        pred_date = parse_date(pred)
+        actual_date = parse_date(actual)
+        errors.append(abs((pred_date - actual_date).days))
         pred_date = parse_date(pred)
         actual_date = parse_date(actual)
         errors.append(abs((pred_date - actual_date).days))
