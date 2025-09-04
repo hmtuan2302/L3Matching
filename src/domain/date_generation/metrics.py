@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from datetime import datetime
 from typing import List
 from typing import Tuple
 from typing import Union
@@ -25,13 +26,26 @@ def iou_1_sample(
     pred_start, pred_end = predicted_values
     actual_start, actual_end = actual_values
 
-    # Convert strings to date
-    if isinstance(pred_start, str):
-        pred_start = date.fromisoformat(pred_start)
-        pred_end = date.fromisoformat(pred_end)
-    if isinstance(actual_start, str):
-        actual_start = date.fromisoformat(actual_start)
-        actual_end = date.fromisoformat(actual_end)
+    # Helper function to convert string or date to date object
+    def parse_date(date_value):
+        if isinstance(date_value, str):
+            # Handle both date and datetime strings
+            if ' ' in date_value:  # datetime string
+                return datetime.fromisoformat(date_value).date()
+            else:  # date string
+                return date.fromisoformat(date_value)
+        elif isinstance(date_value, datetime):
+            return date_value.date()
+        elif isinstance(date_value, date):
+            return date_value
+        else:
+            raise ValueError(f"Unsupported date type: {type(date_value)}")
+
+    # Convert all values to date objects
+    pred_start = parse_date(pred_start)
+    pred_end = parse_date(pred_end)
+    actual_start = parse_date(actual_start)
+    actual_end = parse_date(actual_end)
 
     # Ensure proper order
     if pred_end < pred_start:
@@ -103,12 +117,25 @@ def mae(
     if not predicted_dates:
         return 0.0
 
+    # Helper function to convert string or date to date object
+    def parse_date(date_value):
+        if isinstance(date_value, str):
+            # Handle both date and datetime strings
+            if ' ' in date_value:  # datetime string
+                return datetime.fromisoformat(date_value).date()
+            else:  # date string
+                return date.fromisoformat(date_value)
+        elif isinstance(date_value, datetime):
+            return date_value.date()
+        elif isinstance(date_value, date):
+            return date_value
+        else:
+            raise ValueError(f"Unsupported date type: {type(date_value)}")
+
     errors = []
     for pred, actual in zip(predicted_dates, actual_dates):
-        if isinstance(pred, str):
-            pred = date.fromisoformat(pred)
-        if isinstance(actual, str):
-            actual = date.fromisoformat(actual)
-        errors.append(abs((pred - actual).days))
+        pred_date = parse_date(pred)
+        actual_date = parse_date(actual)
+        errors.append(abs((pred_date - actual_date).days))
 
     return float(np.mean(errors))

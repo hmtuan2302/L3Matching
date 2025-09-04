@@ -17,17 +17,18 @@ logger = get_logger(__name__)
 
 
 class PreProcessorInput(BaseModel):
+    model_config = {'arbitrary_types_allowed': True}
     file: UploadFile
     file_type: Literal[
         'mdl_input_testing',
         'mdl_historical', 'l3',
     ] = 'mdl_input_testing'
 
+class PreProcessorOutput(BaseModel):
+    model_config = {'arbitrary_types_allowed': True}
+    processed_data: dict[str, pl.DataFrame] # Keys: 'mdl_input_testing', 'mdl_historical', 'l3'
 
 class PreProcessor:
-
-    def __init__(self):
-        self.mdl_preprocessor = MDLPreprocessor()
 
     def _save_upload_file(self, upload_file: UploadFile) -> str:
         """Save uploaded file to temporary location."""
@@ -55,12 +56,13 @@ class PreProcessor:
     def process_multiple(
         self,
         inputs: list[PreProcessorInput],
-    ) -> dict:
+        output_dir: str = "../processed_outputs"
+    ) -> PreProcessorOutput:
         """
         Process multiple files and return a dict of processed DataFrames.
-        The L3 file is processed first to extract the NTP date, which is then
-        applied to the processing of MDL files.
+        Also saves each processed DataFrame to disk.
         """
+        os.makedirs(output_dir, exist_ok=True)
         processed_dfs = {}
         ntp_date = None
 
@@ -69,11 +71,16 @@ class PreProcessor:
             if input.file_type == 'l3':
                 try:
                     logger.info("Processing L3 file to extract NTP date...")
-                    _ = self._read_excel_file(input.file.file)
                     l3_processor = L3Processor()
                     l3_clean_df = l3_processor.load_data(input.file.file)
                     ntp_date = l3_processor.find_ntp_date(l3_clean_df)
                     processed_dfs['l3'] = l3_clean_df
+
+                    # Save L3
+                    out_path = Path(output_dir) / "l3_processed.xlsx"
+                    l3_clean_df.to_pandas().to_excel(out_path, index=False)
+                    logger.info(f"L3 processed file saved to {out_path}")
+
                     logger.info(f"NTP date extracted: {ntp_date}")
                 except Exception as e:
                     logger.error(
@@ -91,13 +98,22 @@ class PreProcessor:
                 temp_file_path = None
                 try:
                     logger.info(f"Processing {input.file_type} file...")
-                    temp_file_path = self._save_upload_file(input.file)
-                    df = self._read_excel_file(temp_file_path)
 
-                    ## TODO: fill in this part
-                    mdl_processor = MDLPreprocessor()
-
+                    mdl_processor = MDLPreprocessor(
+                        list_excel_file_path=[input.file.file],
+                        list_NTP=[ntp_date]
+                    )
+                    mdl_processor.load_data()
+                    df = mdl_processor.preprocess()
+                    df = df.with_columns([
+                        pl.lit(ntp_date).alias("start_date")
+                    ])
                     processed_dfs[input.file_type] = df
+
+                    # Save MDL
+                    out_path = Path(output_dir) / f"{input.file_type}_processed.xlsx"
+                    df.to_pandas().to_excel(out_path, index=False)
+                    logger.info(f"{input.file_type} processed file saved to {out_path}")
 
                 except Exception as e:
                     logger.error(
@@ -113,4 +129,23 @@ class PreProcessor:
                             logger.warning(f"Could not clean up temp file: {str(e)}")
 
         return processed_dfs
+    
 
+## TODO: remove later - example usage
+from pathlib import Path
+from fastapi import UploadFile
+
+# Helper: turn local file path → UploadFile
+def to_uploadfile(path: str) -> UploadFile:
+    return UploadFile(filename=Path(path).name, file=open(path, "rb"))
+
+# Example input files
+inputs = [
+    PreProcessorInput(file=to_uploadfile("../data/Grati_L3.xlsx"), file_type="l3"),
+    PreProcessorInput(file=to_uploadfile("../data/Grati_MDL_test.xlsx"), file_type="mdl_input_testing"),
+    PreProcessorInput(file=to_uploadfile("../data/Grati_MDL_train.xlsx"), file_type="mdl_historical"),
+]
+
+# Run processor
+processor = PreProcessor()
+outputs = processor.process_multiple(inputs, output_dir="../processed_results")

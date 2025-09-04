@@ -25,11 +25,11 @@ class MDLPreprocessor:
     def _load_single_file(self, file_path: str, 
                          NTP: pl.datetime = pl.datetime(2016, 12, 27)) -> pl.DataFrame:
         # read excel file with file_path
-        df = pl.read_excel(file_path, 
-                           sheet_name="DDCL(DHI-PP) 2020-10-21",
-                           read_options={"skip_rows": 4})
-        df = df[:, [2, 4, 6, 7]]    # Need to adjust based on actual file structure
-        df.columns = ["Document No", "Title", "FA", "FC"]
+        df = pl.read_excel(file_path)
+                        #    sheet_name="DDCL(DHI-PP) 2020-10-21",
+                        #    read_options={"skip_rows": 4})
+        # df = df[:, [2, 4, 6, 7]]    # Need to adjust based on actual file structure
+        # df.columns = ["Document No", "Title", "FA", "FC"]
 
         # datetime NTP = 27/12/2016
         # calculate days from NTP to FA and FC
@@ -332,10 +332,10 @@ class MDLPreprocessor:
         
         # Update dataframe with embedding columns
         self.df = self.df.with_columns([
-            pl.Series("no_embed", doc_no_vectors),
-            pl.Series("title_embed", title_vectors),
-            pl.Series("concat_embed", combined_vectors)
+            pl.Series("no_embed", doc_no_vectors).cast(pl.List(pl.Float64)),
+            pl.Series("title_embed", title_vectors).cast(pl.List(pl.Float64)),
+            pl.Series("concat_embed", combined_vectors).cast(pl.List(pl.Float64)),
         ])
-        
+    
         return self.df
 

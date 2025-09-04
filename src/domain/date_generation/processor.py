@@ -4,14 +4,12 @@ from datetime import timedelta
 from typing import Any
 from typing import Dict
 from typing import List
-from typing import Optional
+from typing import Optional, Literal
 from typing import Tuple
-
+from domain.preprocess import PreProcessorOutput
+from domain.date_generation.basic_approach import basic_date_gen
 import numpy as np
 import polars as pl
-from domain.date_generation.match_title import exact_match
-from domain.date_generation.match_title import find_similar_embeddings
-from domain.date_generation.match_title import fuzzy_search
 from domain.date_generation.metrics import iou_1_sample
 from domain.date_generation.metrics import iou_mean
 from domain.date_generation.metrics import mae
@@ -26,7 +24,9 @@ logger = get_logger(__name__)
 class DateGenerationInput(BaseModel):
     """Input for date generation processing."""
     model_config = {'arbitrary_types_allowed': True}
-    pass
+    preprocessed_data: PreProcessorOutput
+    basic_cal_method: Literal['weighted_avg', 'avg'] = 'weighted_avg'
+    max_k: int = 15
 
 class DateGenerationOutput(BaseModel):
     """Output from date generation processing."""
@@ -40,10 +40,81 @@ class DateGenerationOutput(BaseModel):
 class DateGenerationProcessor:
     """Processor for generating date predictions based on historical data."""
 
+    def calculate_fa_fc(self, df: pl.DataFrame) -> pl.DataFrame:
+        ## add predicted_FA and predicted_FC columns
+        df = df.with_columns([
+            (pl.col("predicted_NTP_to_FA") + pl.col("start_date")).alias("predicted_FA"),
+            (pl.col("predicted_FA_to_FC") + pl.col("predicted_FA")).alias("predicted_FC"),
+        ])
+        return df
+
+    
     @profile
     def process(
         self,
-        data: Dict[str, pl.DataFrame],
+        input_data: DateGenerationInput,
     ) -> DateGenerationOutput:
         """Batch date generation pipeline for all rows in input_df."""
-        pass
+
+        # Extract inputs
+        input_df = input_data.preprocessed_data["mdl_historical"]
+        hist_df = input_data.preprocessed_data["mdl_input_testing"]
+
+        logger.info(
+            f"Running date generation with method={input_data.basic_cal_method}, max_k={input_data.max_k}"
+        )
+
+        # Step 1: Run basic date generation
+        pred_df = basic_date_gen(
+            input_data=input_df,
+            hist_data=hist_df,
+            max_k=input_data.max_k,
+            method=input_data.basic_cal_method,
+        )
+        pred_df = self.calculate_fa_fc(pred_df)
+        # Step 2: Compute evaluation metrics if ground truth available
+        iou_score = None
+        mae_first = None
+        mae_final = None
+
+        if "NTP_to_FA" in pred_df.columns and "FA_to_FC" in pred_df.columns:
+            try:
+                iou_score = iou_mean(
+                    list(
+                        zip(
+                            pred_df["predicted_FA"].to_numpy(),
+                            pred_df["FA"].to_numpy(),
+                        )
+                    ),
+                    list(
+                        zip(
+                            pred_df["predicted_FC"].to_numpy(),
+                            pred_df["FC"].to_numpy(),
+                        )
+                    ),
+                )
+
+                mae_first = mae(
+                    pred_df["predicted_FA"].to_numpy(),
+                    pred_df["FA"].to_numpy(),
+                )
+
+                mae_final = mae(
+                    pred_df["predicted_FC"].to_numpy(),
+                    pred_df["FC"].to_numpy(),
+                )
+
+                logger.info(
+                    f"Metrics computed: IoU={iou_score}, "
+                    f"MAE_first={mae_first}, MAE_final={mae_final}"
+                )
+
+            except Exception as e:
+                logger.warning(f"Could not compute metrics: {e}")
+
+        return DateGenerationOutput(
+            output_df=pred_df,
+            iou=iou_score,
+            mae_first_date=mae_first,
+            mae_final_date=mae_final,
+        )
