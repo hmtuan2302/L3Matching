@@ -548,7 +548,10 @@ async def upload_multiple_excel_files(
             'total_rows_processed': total_rows_processed,
             'processing_status': 'completed',
             'file_order': file_order,
-            'processed_data': processed_data
+            'processed_data': processed_data,
+            'mae_first_date': result.mae_first_date,
+            'mae_final_date': result.mae_final_date,
+            'iou': result.iou
         }
         
         return exception_handler.handle_success(output)

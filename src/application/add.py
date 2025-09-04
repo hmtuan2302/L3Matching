@@ -21,6 +21,7 @@ from domain.date_generation import DateGenerationOutput
 from typing import List
 from shared.base import BaseModel
 import polars as pl
+from typing import Optional
 
 class AddApplicationInput(DocumentApplicationInput):
     """Input for document application."""
@@ -31,6 +32,9 @@ class AddApplicationOutput(DocumentApplicationOutput):
     """Output for document application."""
     model_config = {'arbitrary_types_allowed': True}
     result: pl.DataFrame
+    mae_first_date: Optional[float] = None
+    mae_final_date: Optional[float] = None
+    iou: Optional[float] = None
 
 class AddApplication(DocumentApplication):
 
@@ -58,10 +62,13 @@ class AddApplication(DocumentApplication):
         l3 = PreProcessorInput(file=inputs.files[2], file_type='l3')
         results = self.preprocess.process_multiple([history, testing, l3])
         print(results)
-        
-        dategen_result = self.dategen.process(results)
+
+        dategen_result = self.dategen.process(DateGenerationInput(preprocessed_data=results))
         print(dategen_result.output_df)
         
         return AddApplicationOutput(
-            result=dategen_result.output_df
+            result=dategen_result.output_df,
+            mae_first_date=dategen_result.mae_first_date,
+            mae_final_date=dategen_result.mae_final_date,
+            iou=dategen_result.iou
         )

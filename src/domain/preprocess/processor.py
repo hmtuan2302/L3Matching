@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import os
 import tempfile
 from pathlib import Path
@@ -72,6 +71,7 @@ class PreProcessor:
                     logger.info("Processing L3 file to extract NTP date...")
                     l3_processor = L3Processor()
                     l3_clean_df = l3_processor.load_data(input.file.file)
+                    print("L3 file loaded and cleaned.", l3_clean_df)
                     ntp_date = l3_processor.find_ntp_date(l3_clean_df)
                     processed_dfs['l3'] = l3_clean_df
 
@@ -127,24 +127,24 @@ class PreProcessor:
                         except Exception as e:
                             logger.warning(f"Could not clean up temp file: {str(e)}")
 
-        return processed_dfs
+        return PreProcessorOutput(processed_data=processed_dfs)
     
 
-## TODO: remove later - example usage
-from pathlib import Path
-from fastapi import UploadFile
+# ## TODO: remove later - example usage
+# from pathlib import Path
+# from fastapi import UploadFile
 
-# Helper: turn local file path → UploadFile
-def to_uploadfile(path: str) -> UploadFile:
-    return UploadFile(filename=Path(path).name, file=open(path, "rb"))
+# # Helper: turn local file path → UploadFile
+# def to_uploadfile(path: str) -> UploadFile:
+#     return UploadFile(filename=Path(path).name, file=open(path, "rb"))
 
-# Example input files
-inputs = [
-    PreProcessorInput(file=to_uploadfile("../data/Grati_L3.xlsx"), file_type="l3"),
-    PreProcessorInput(file=to_uploadfile("../data/Grati_MDL_test.xlsx"), file_type="mdl_input_testing"),
-    PreProcessorInput(file=to_uploadfile("../data/Grati_MDL_train.xlsx"), file_type="mdl_historical"),
-]
+# # Example input files
+# inputs = [
+#     PreProcessorInput(file=to_uploadfile("../data/Grati_L3.xlsx"), file_type="l3"),
+#     PreProcessorInput(file=to_uploadfile("../data/Grati_MDL_test.xlsx"), file_type="mdl_input_testing"),
+#     PreProcessorInput(file=to_uploadfile("../data/Grati_MDL_train.xlsx"), file_type="mdl_historical"),
+# ]
 
-# Run processor
-processor = PreProcessor()
-outputs = processor.process_multiple(inputs, output_dir="../processed_results")
+# # Run processor
+# processor = PreProcessor()
+# outputs = processor.process_multiple(inputs, output_dir="../processed_results")

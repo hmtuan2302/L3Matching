@@ -1,18 +1,18 @@
 import polars as pl
-from typing import List, Tuple
+from typing import List, Tuple, Union, BinaryIO
 import datetime
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 from rank_bm25 import BM25Okapi
 import re
 from nltk.corpus import stopwords
 import joblib
-import datetime
 from pathlib import Path
+import io
 from shared.utils import get_logger
 logger = get_logger(__name__)
 
 class MDLPreprocessor:
-    def __init__(self, list_excel_file_path: List[str], list_NTP: List[datetime.datetime]) -> None:
+    def __init__(self, list_excel_file_path: List[Union[str, bytes, BinaryIO]], list_NTP: List[datetime.datetime]) -> None:
         self.list_excel_file_path = list_excel_file_path
         self.list_NTP = list_NTP
         self.df = None
@@ -22,10 +22,25 @@ class MDLPreprocessor:
         self.bm25_model = None
         self.vocabulary = None
 
-    def _load_single_file(self, file_path: str, 
-                         NTP: pl.datetime = pl.datetime(2016, 12, 27)) -> pl.DataFrame:
-        # read excel file with file_path
-        df = pl.read_excel(file_path)
+    def _load_single_file(self, data_source: Union[str, bytes, BinaryIO], 
+                         NTP: datetime.datetime = datetime.datetime(2016, 12, 27)) -> pl.DataFrame:
+        # Read excel file from different data source types
+        if isinstance(data_source, str):
+            # File path
+            df = pl.read_excel(data_source)
+        elif isinstance(data_source, bytes):
+            # Binary data
+            df = pl.read_excel(io.BytesIO(data_source))
+        elif hasattr(data_source, 'read'):
+            # File-like object (including UploadFile.file)
+            try:
+                data_source.seek(0)  # Reset file pointer to beginning
+            except (AttributeError, io.UnsupportedOperation):
+                pass  # Some file-like objects don't support seek
+            content = data_source.read()
+            df = pl.read_excel(io.BytesIO(content))
+        else:
+            raise ValueError(f"Unsupported data source type: {type(data_source)}")
                         #    sheet_name="DDCL(DHI-PP) 2020-10-21",
                         #    read_options={"skip_rows": 4})
         # df = df[:, [2, 4, 6, 7]]    # Need to adjust based on actual file structure
@@ -47,8 +62,8 @@ class MDLPreprocessor:
     def load_data(self) -> pl.DataFrame:
         # load all excel files and concatenate them into a single dataframe
         df_list = []
-        for file_path, NTP in zip(self.list_excel_file_path, self.list_NTP):
-            df = self._load_single_file(file_path, NTP)
+        for data_source, NTP in zip(self.list_excel_file_path, self.list_NTP):
+            df = self._load_single_file(data_source, NTP)
             df_list.append(df)
         df = pl.concat(df_list, how="vertical")
         self.df = df

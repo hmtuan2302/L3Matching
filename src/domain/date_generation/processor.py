@@ -13,7 +13,7 @@ import polars as pl
 from domain.date_generation.metrics import iou_1_sample
 from domain.date_generation.metrics import iou_mean
 from domain.date_generation.metrics import mae
-from domain.preprocess.mdl_processor import EmbeddingProcessor
+# from domain.preprocess.mdl_processor import EmbeddingProcessor
 from shared.base import BaseModel
 from shared.utils import get_logger
 from shared.utils import profile
@@ -61,8 +61,8 @@ class DateGenerationProcessor:
         """Batch date generation pipeline for all rows in input_df."""
 
         # Extract inputs
-        input_df = input_data.preprocessed_data["mdl_historical"]
-        hist_df = input_data.preprocessed_data["mdl_input_testing"]
+        input_df = input_data.preprocessed_data.processed_data["mdl_historical"]
+        hist_df = input_data.preprocessed_data.processed_data["mdl_input_testing"]
 
         logger.info(
             f"Running date generation with method={input_data.basic_cal_method}, max_k={input_data.max_k}"

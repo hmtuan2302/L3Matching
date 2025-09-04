@@ -112,6 +112,8 @@ def main():
         st.session_state.file_processed = False
     if 'show_config' not in st.session_state:
         st.session_state.show_config = False
+    if 'metrics' not in st.session_state:
+        st.session_state.metrics = None
     
     # Header
     st.title("📊 Excel Data Viewer")
@@ -180,6 +182,30 @@ def main():
             st.subheader("📈 Dataset Summary")
             st.write(f"**Shape:** {st.session_state.data.shape[0]:,} rows × {st.session_state.data.shape[1]} columns")
             st.write(f"**Memory Usage:** {st.session_state.data.memory_usage(deep=True).sum() / 1024**2:.2f} MB")
+        
+        # Processing metrics if available
+        if st.session_state.get('metrics') is not None and st.session_state.file_processed:
+            st.divider()
+            st.subheader("📊 Processing Metrics")
+            metrics = st.session_state.metrics
+            
+            # MAE First Date
+            mae_first = metrics.get('mae_first_date', 'N/A')
+            if mae_first != 'N/A':
+                st.metric("MAE First Date", mae_first)
+            
+            # MAE Final Date  
+            mae_final = metrics.get('mae_final_date', 'N/A')
+            if mae_final != 'N/A':
+                st.metric("MAE Final Date", mae_final)
+            
+            # IoU Score
+            iou_value = metrics.get('iou', 'N/A')
+            if iou_value != 'N/A':
+                if isinstance(iou_value, (int, float)):
+                    st.metric("IoU Score", f"{iou_value:.4f}")
+                else:
+                    st.metric("IoU Score", str(iou_value))
     
     # File upload section
     st.header("📁 Multiple File Upload")
@@ -272,6 +298,49 @@ def main():
                             if 'file_order' in info:
                                 st.success(f"✅ Files processed in order: {' → '.join(info['file_order'])}")
                             
+                            # Display processing metrics in a nice layout
+                            if any(key in info for key in ['mae_first_date', 'mae_final_date', 'iou']):
+                                st.markdown("### 📊 Processing Metrics")
+                                
+                                metric_col1, metric_col2, metric_col3 = st.columns(3)
+                                
+                                with metric_col1:
+                                    mae_first = info.get('mae_first_date', 'N/A')
+                                    st.metric(
+                                        label="MAE First Date",
+                                        value=mae_first if mae_first != 'N/A' else 'Not Available',
+                                        help="Mean Absolute Error for the first date"
+                                    )
+                                
+                                with metric_col2:
+                                    mae_final = info.get('mae_final_date', 'N/A')
+                                    st.metric(
+                                        label="MAE Final Date", 
+                                        value=mae_final if mae_final != 'N/A' else 'Not Available',
+                                        help="Mean Absolute Error for the final date"
+                                    )
+                                
+                                with metric_col3:
+                                    iou_value = info.get('iou', 'N/A')
+                                    # Format IOU value if it's a number
+                                    if isinstance(iou_value, (int, float)):
+                                        iou_display = f"{iou_value:.4f}"
+                                    else:
+                                        iou_display = str(iou_value) if iou_value != 'N/A' else 'Not Available'
+                                    
+                                    st.metric(
+                                        label="IoU Score",
+                                        value=iou_display,
+                                        help="Intersection over Union score"
+                                    )
+                                
+                                # Store metrics in session state for later display
+                                st.session_state.metrics = {
+                                    'mae_first_date': mae_first,
+                                    'mae_final_date': mae_final,
+                                    'iou': iou_value
+                                }
+                            
                             # Use processed data from backend if available
                             if 'processed_data' in info and info['processed_data']:
                                 # Combine all processed data into one DataFrame for display
@@ -313,6 +382,53 @@ def main():
     
     # Display data if available
     if st.session_state.data is not None and st.session_state.file_processed:
+        # Show processing metrics prominently if available
+        if st.session_state.get('metrics') is not None:
+            st.header("📊 Processing Results")
+            
+            # Create metrics display
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                total_rows = len(st.session_state.data)
+                st.metric(
+                    label="Total Rows Processed",
+                    value=f"{total_rows:,}",
+                    help="Total number of rows in the processed dataset"
+                )
+            
+            with col2:
+                metrics = st.session_state.metrics
+                mae_first = metrics.get('mae_first_date', 'N/A') if metrics else 'N/A'
+                st.metric(
+                    label="MAE First Date",
+                    value=mae_first if mae_first != 'N/A' else 'Not Available',
+                    help="Mean Absolute Error for the first date"
+                )
+            
+            with col3:
+                mae_final = metrics.get('mae_final_date', 'N/A') if metrics else 'N/A'
+                st.metric(
+                    label="MAE Final Date",
+                    value=mae_final if mae_final != 'N/A' else 'Not Available',
+                    help="Mean Absolute Error for the final date"
+                )
+            
+            with col4:
+                iou_value = metrics.get('iou', 'N/A') if metrics else 'N/A'
+                if isinstance(iou_value, (int, float)):
+                    iou_display = f"{iou_value:.4f}"
+                else:
+                    iou_display = str(iou_value) if iou_value != 'N/A' else 'Not Available'
+                
+                st.metric(
+                    label="IoU Score",
+                    value=iou_display,
+                    help="Intersection over Union score (higher is better)"
+                )
+            
+            st.divider()
+        
         st.header("📋 Data View")
         
         df = st.session_state.data
