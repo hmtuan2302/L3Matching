@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import List
 from typing import Tuple
 from typing import Union
-
+import pandas as pd
 import numpy as np
 
 
@@ -38,6 +38,9 @@ def iou_1_sample(
             return date_value.date()
         elif isinstance(date_value, date):
             return date_value
+        elif isinstance(date_value, np.datetime64):
+            # Convert numpy.datetime64 to datetime first
+            return pd.to_datetime(date_value).to_pydatetime()
         else:
             raise ValueError(f"Unsupported date type: {type(date_value)}")
 

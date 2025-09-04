@@ -43,8 +43,12 @@ class DateGenerationProcessor:
     def calculate_fa_fc(self, df: pl.DataFrame) -> pl.DataFrame:
         ## add predicted_FA and predicted_FC columns
         df = df.with_columns([
-            (pl.col("predicted_NTP_to_FA") + pl.col("start_date")).alias("predicted_FA"),
-            (pl.col("predicted_FA_to_FC") + pl.col("predicted_FA")).alias("predicted_FC"),
+            (pl.col("start_date") + pl.duration(days=pl.col("predicted_NTP_to_FA"))).alias("predicted_FA")
+        ])
+
+        # predicted_FC = predicted_FA + predicted_FA_to_FC (as days)
+        df = df.with_columns([
+            (pl.col("predicted_FA") + pl.duration(days=pl.col("predicted_FA_to_FC"))).alias("predicted_FC")
         ])
         return df
 
@@ -82,26 +86,26 @@ class DateGenerationProcessor:
                 iou_score = iou_mean(
                     list(
                         zip(
-                            pred_df["predicted_FA"].to_numpy(),
-                            pred_df["FA"].to_numpy(),
+                            pred_df["predicted_FA"].to_list(),
+                            pred_df["FA"].to_list(),
                         )
                     ),
                     list(
                         zip(
-                            pred_df["predicted_FC"].to_numpy(),
-                            pred_df["FC"].to_numpy(),
+                            pred_df["predicted_FC"].to_list(),
+                            pred_df["FC"].to_list(),
                         )
                     ),
                 )
 
                 mae_first = mae(
-                    pred_df["predicted_FA"].to_numpy(),
-                    pred_df["FA"].to_numpy(),
+                    pred_df["predicted_FA"].to_list(),
+                    pred_df["FA"].to_list(),
                 )
 
                 mae_final = mae(
-                    pred_df["predicted_FC"].to_numpy(),
-                    pred_df["FC"].to_numpy(),
+                    pred_df["predicted_FC"].to_list(),
+                    pred_df["FC"].to_list(),
                 )
 
                 logger.info(
