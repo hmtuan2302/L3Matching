@@ -87,28 +87,39 @@ def basic_date_gen(
     max_k: int,
     method: Literal["weighted_avg", "avg"] = "weighted_avg",
 ) -> pl.DataFrame:
-    """Main entry point: generates predicted date ranges."""
+    """Generate predicted date ranges row by row."""
+    
+    # Parse embeddings
     input_data = input_data.with_columns(
         pl.col("concat_embed").map_elements(parse_embedding).alias("concat_embed")
     )
     hist_data = hist_data.with_columns(
         pl.col("concat_embed").map_elements(parse_embedding).alias("concat_embed")
-    )   
+    )
 
-    # Convert to NumPy arrays
-    A = np.stack(input_data["concat_embed"].to_numpy())
+    # Convert historical embeddings and date columns to NumPy arrays
     B = np.stack(hist_data["concat_embed"].to_numpy())
-
-    sim_matrix = cosine_similarity_matrix(A, B)
-
     hist_NTP_FA = hist_data["NTP_to_FA"].to_numpy()
     hist_FA_FC = hist_data["FA_to_FC"].to_numpy()
 
-    # Predictions
-    NTP_to_FA_pred = predict_date_range(sim_matrix, hist_NTP_FA, method, max_k)
-    FA_to_FC_pred = predict_date_range(sim_matrix, hist_FA_FC, method, max_k)
+    predicted_NTP_to_FA = []
+    predicted_FA_to_FC = []
 
+    # Process each row individually
+    for row_embed in input_data["concat_embed"]:
+        A = np.array(row_embed).reshape(1, -1)  # shape (1, D)
+        sim_vector = cosine_similarity_matrix(A, B).flatten()  # similarity with all hist rows
+
+        # Predict date ranges
+        NTP_pred = predict_date_range(sim_vector.reshape(1, -1), hist_NTP_FA, method, max_k)[0]
+        FA_pred = predict_date_range(sim_vector.reshape(1, -1), hist_FA_FC, method, max_k)[0]
+
+        predicted_NTP_to_FA.append(NTP_pred)
+        predicted_FA_to_FC.append(FA_pred)
+
+    logger.info(predicted_FA_to_FC)
+    logger.info(predicted_NTP_to_FA)
     return input_data.with_columns([
-        pl.Series("predicted_NTP_to_FA", NTP_to_FA_pred),
-        pl.Series("predicted_FA_to_FC", FA_to_FC_pred),
+        pl.Series("predicted_NTP_to_FA", predicted_NTP_to_FA),
+        pl.Series("predicted_FA_to_FC", predicted_FA_to_FC),
     ])
