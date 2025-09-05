@@ -122,6 +122,31 @@ class LightGBMModel:
 
         return y_pred
 
+    def inference_and_update(self, model_path: str = None):
+        """Perform inference and update the test dataset with predictions."""
+
+        feature_column = "concat_embed"
+        target_columns = ["NTP_to_FA", "FA_to_FC"]
+        for target_column in target_columns:
+            y_pred = self.inference(feature_column, target_column, model_path)
+            y_pred = np.round(y_pred).astype(int)
+            # Update the test_data DataFrame with predictions
+            self.test_data = self.test_data.with_columns(
+                pl.Series(name=f"pred_{target_column}", values=y_pred)
+            )
+        self.test_data = self.test_data.with_columns(
+            pl.Series(name="pred_NTP_to_FC", 
+                      values=self.test_data["pred_NTP_to_FA"] + self.test_data["pred_FA_to_FC"])
+        )
+
+        # convert columns pred_NTP_to_FA -> pred_FA; pred_NTP_to_FC -> pred_FC (datetime)
+        self.test_data = self.test_data.with_columns(
+            (pl.datetime(2016, 12, 27) + pl.duration(days=pl.col("pred_NTP_to_FA"))).alias("pred_FA"),
+            (pl.datetime(2016, 12, 27) + pl.duration(days=pl.col("pred_NTP_to_FC"))).alias("pred_FC")
+        )
+
+        logger.info("Inference and update finished.")
+        return self.test_data
 
 if __name__ == "__main__":
     # Load and preprocess data
@@ -156,9 +181,7 @@ if __name__ == "__main__":
 
     # Inference example
     lgbm_inference = LightGBMModel(None, None, df_test)
-    feature_col = "concat_embed"
-    target_columns = ["NTP_to_FA", "FA_to_FC"]
-    for target_col in target_columns:
-        logger.info(f"Inference with feature: {feature_col}, target: {target_col}")
-        lgbm_inference.inference(feature_column=feature_col, target_column=target_col)
+    lgbm_inference.inference_and_update()
+    logger.info("Sample data test after inference:")
+    logger.info(lgbm_inference.test_data.head())
 
