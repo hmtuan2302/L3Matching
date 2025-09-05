@@ -61,25 +61,6 @@ def predict_date_range(
 
     return predictions
 
-def parse_embedding(x: str) -> list[float]:
-    """
-    Convert a string like "[0. 1.23 4.56]" into a list of floats.
-    Handles extra commas/newlines/spaces.
-    """
-    if isinstance(x, (list, np.ndarray)):
-        return [float(v) for v in x]
-    if not isinstance(x, str):
-        return []
-    try:
-        # Remove brackets and normalize whitespace/commas
-        cleaned = re.sub(r"[\[\]\n\r]", " ", x)
-        cleaned = re.sub(r"[,\s]+", " ", cleaned).strip()
-        if not cleaned:
-            return []
-        return [float(v) for v in cleaned.split(" ")]
-    except Exception as e:
-        logger.error(f"Failed to parse embedding: {x[:80]}... ({e})")
-        return []
 
 def basic_date_gen(
     input_data: pl.DataFrame,
@@ -87,33 +68,30 @@ def basic_date_gen(
     max_k: int,
     method: Literal["weighted_avg", "avg"] = "weighted_avg",
 ) -> pl.DataFrame:
-    """Main entry point: generates predicted date ranges."""
-    input_data = input_data.with_columns(
-        pl.col("concat_embed").map_elements(parse_embedding).alias("concat_embed")
-    )
-    hist_data = hist_data.with_columns(
-        pl.col("concat_embed").map_elements(parse_embedding).alias("concat_embed")
-    )   
-
-    # Convert to NumPy arrays
-    A = np.stack(input_data["concat_embed"].to_numpy())
+    """Generate predicted date ranges row by row."""
+   
+    # Convert historical embeddings and date columns to NumPy arrays
     B = np.stack(hist_data["concat_embed"].to_numpy())
-
-    sim_matrix = cosine_similarity_matrix(A, B)
-
     hist_NTP_FA = hist_data["NTP_to_FA"].to_numpy()
     hist_FA_FC = hist_data["FA_to_FC"].to_numpy()
-
-    # Predictions
-    NTP_to_FA_pred = predict_date_range(sim_matrix, hist_NTP_FA, method, max_k)
-    FA_to_FC_pred = predict_date_range(sim_matrix, hist_FA_FC, method, max_k)
-
-    # Remove embedding columns from output
-    columns_to_exclude = ["no_embed", "title_embed", "concat_embed"]
-    filtered_columns = [col for col in input_data.columns if col not in columns_to_exclude]
-    
-    # Create DataFrame with predictions
-    return input_data.select(filtered_columns).with_columns([
-        pl.Series("predicted_NTP_to_FA", NTP_to_FA_pred),
-        pl.Series("predicted_FA_to_FC", FA_to_FC_pred),
+ 
+    predicted_NTP_to_FA = []
+    predicted_FA_to_FC = []
+ 
+    # Process each row individually
+    for row_embed in input_data["concat_embed"]:
+        A = np.array(row_embed).reshape(1, -1)  # shape (1, D)
+        sim_vector = cosine_similarity_matrix(A, B).flatten()  # similarity with all hist rows
+ 
+        # Predict date ranges
+        NTP_pred = predict_date_range(sim_vector.reshape(1, -1), hist_NTP_FA, method, max_k)[0]
+        FA_pred = predict_date_range(sim_vector.reshape(1, -1), hist_FA_FC, method, max_k)[0]
+ 
+        predicted_NTP_to_FA.append(NTP_pred)
+        predicted_FA_to_FC.append(FA_pred)
+ 
+ 
+    return input_data.with_columns([
+        pl.Series("predicted_NTP_to_FA", predicted_NTP_to_FA),
+        pl.Series("predicted_FA_to_FC", predicted_FA_to_FC),
     ])

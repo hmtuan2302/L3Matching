@@ -95,8 +95,14 @@ class DateGenerationProcessor:
         iou_score = None
         mae_first = None
         mae_final = None
-
-        if "NTP_to_FA" in pred_df.columns and "FA_to_FC" in pred_df.columns:
+        pred_df = pred_df.with_columns([
+            pl.col("predicted_FA").dt.strftime("%Y-%m-%d").alias("predicted_FA"),
+            pl.col("predicted_FC").dt.strftime("%Y-%m-%d").alias("predicted_FC"),
+            pl.col("FA").dt.strftime("%Y-%m-%d").alias("FA"),
+            pl.col("FC").dt.strftime("%Y-%m-%d").alias("FC"),
+            pl.col("start_date").dt.strftime("%Y-%m-%d").alias("start_date")
+        ])
+        if "predicted_FA" in pred_df.columns and "predicted_FC" in pred_df.columns:
             try:
                 iou_score = iou_mean(
                     list(
